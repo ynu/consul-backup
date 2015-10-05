@@ -8,6 +8,7 @@ import (
     "strings"
 	"github.com/hashicorp/consul/api"
     "github.com/docopt/docopt-go"
+    "encoding/base64"
 )
 
 
@@ -35,19 +36,20 @@ func backup(ipaddress string, token string, outfile string) {
     config.Address = ipaddress
     config.Token = token
 
-
 	client, _ := api.NewClient(config)
 	kv := client.KV()
 
 	pairs, _, err := kv.List("/", nil)
     if err != nil {
-            panic(err)
-        }
+        panic(err)
+    }
+
     sort.Sort(ByCreateIndex(pairs))
 
     outstring := ""
 	for _, element := range pairs {
-        outstring += fmt.Sprintf("%s:%s\n", element.Key, element.Value)
+        encoded_value := base64.StdEncoding.EncodeToString(element.Value)
+        outstring += fmt.Sprintf("%s:%s\n", element.Key, encoded_value)
 	}
 
     file, err := os.Create(outfile)
@@ -65,7 +67,6 @@ func backupAcls(ipaddress string, token string, outfile string) {
     config := api.DefaultConfig()
     config.Address = ipaddress
     config.Token = token
-
 
 	client, _ := api.NewClient(config)
 	acl := client.ACL()
@@ -114,7 +115,12 @@ func restore(ipaddress string, token string, infile string) {
         kvp := strings.Split(element, ":")
 
         if len(kvp) > 1 {
-            p := &api.KVPair{Key: kvp[0], Value: []byte(kvp[1])}
+            decoded_value, decode_err := base64.StdEncoding.DecodeString(kvp[1])
+            if decode_err != nil {
+                panic(decode_err)
+            }
+
+            p := &api.KVPair{Key: kvp[0], Value: decoded_value}
             _, err := kv.Put(p, nil)
             if err != nil {
                 panic(err)
