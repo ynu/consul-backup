@@ -4,7 +4,7 @@ import (
 	"fmt"
     "sort"
     "os"
-    "io"
+    "io/ioutil"
     "strings"
 	"github.com/armon/consul-api"
     "github.com/docopt/docopt-go"
@@ -68,14 +68,10 @@ func restore(ipaddress string, infile string) {
     config := consulapi.DefaultConfig()
     config.Address = ipaddress
 
-    file, err := os.Open(infile)
+    data, err := ioutil.ReadFile(infile)
     if err != nil {
     	panic(err)
     }
-
-    data := make([]byte, 100)
-    _, err = file.Read(data)
-    if err != nil && err != io.EOF { panic(err) }
 
     client, _ := consulapi.NewClient(config)
     kv := client.KV()
